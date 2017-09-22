@@ -1,31 +1,21 @@
 import sys
-from numpy import ndarray
-import math
 import random
+from numpy import ndarray
 
 MAX_K=5
 MAX_N=500
-XYpos = ndarray((MAX_N, 2))
+
 d_matrix = ndarray((MAX_N, MAX_N))
 f_matrix = ndarray((MAX_K, MAX_N, MAX_N))
-n_fac = 30 # number of facilities/locations in the QAP
-n_k = 2
-overlap=1.0
 
 
 def main():
 
-	corr=ndarray((MAX_N,),float)
-	
-	M=0
-	K=1
-	m=100
-	A=-5
-	B=5
-	
 	n_fac = 30 # number of facilities/locations in the QAP
 	n_k = 2
-	overlap=1.0
+	corr = 0
+	max_flow = 100
+	max_dist = 100
 
 	arg = sys.argv[1:]
 	if len(arg) == 1:
@@ -37,28 +27,14 @@ def main():
 		for i in range(0,len(arg),2):
 			if arg[i] == "-n":
 				n_fac = arg[i+1]
-			elif arg[i] == "-A":
-				A = arg[i+1]
-			elif arg[i] == "-B":
-				B = arg[i+1]
-			elif arg[i] == "-M":
-				M = arg[i+1]
-			elif arg[i] == "-K":
-				K = arg[i+1]
-			elif arg[i] == "-m":
-				m = arg[i+1]
-			elif arg[i] == "-ov":
-				overlap = arg[i+1]
 			elif arg[i] == "-k":
 				n_k = arg[i+1]
-			elif arg[i] == "-c1":
-				corr[1] = arg[i+1]
-			elif arg[i] == "-c2":
-				corr[2] = arg[i+1]
-			elif arg[i] == "-c3":
-				corr[3] = arg[i+1]
-			elif arg[i] == "-c4":
-				corr[4] = arg[i+1]
+			elif arg[i] == "-c":
+				corr = arg[i+1]
+			elif arg[i] == "-f":
+				max_flow = arg[i+1]
+			elif arg[i] == "-d":
+				max_dist = arg[i+1]
 			elif arg[i] == "-s":
 				seed = arg[i+1]
 			else:
@@ -69,8 +45,7 @@ def main():
 		print("Number of facilities too high. Maximum is currently set at "+str(MAX_N));
 		sys.exit()
 
-	for k in range(0,int(n_k)):
-		if corr[k] > 1.0 or corr[k] < (-1.0):
+	if float(corr) > 1.0 or float(corr) < (-1.0):
 			print("Correlations must be in the interval [-1,1]")
 			sys.exit()
 
@@ -78,81 +53,37 @@ def main():
 		print("number of objectives too high. Maximum is currently set at "+str(MAX_K))
 		sys.exit()
 
-	if int(B) < 0:
-		print("B must be a positive integer")
-		sys.exit()
-
-	if int(A) >= int(B):
-		print("A must be less than B")
-		sys.exit()
-
-	if int(K) < 0:
-		print("K must be a positive integer")
-		sys.exit()
-
-	if int(M) < 0:
-		print("M must be a positive integer")
-		sys.exit()
-
-	if int(m) < 0:
-		print("m must be a positive integer")
-		sys.exit()
-	
-	point_in_plane(M, K, m, n_fac);
-
-	max_dist=0
-	for i in range(0,int(n_fac)):
-		for j in range(0,int(n_fac)):
-			d1=int(math.sqrt((XYpos[i][0]-XYpos[j][0])*(XYpos[i][0]-XYpos[j][0])+ ((XYpos[i][1]-XYpos[j][1]))*((XYpos[i][1]-XYpos[j][1]))))
-			d_matrix[i][j] = d1
-			d_matrix[j][i] = d1
-			if d1 > max_dist:
-				max_dist = d1
-
-	max_flow=0
 
 	for i in range(0,int(n_fac)):
 		for j in range(0,int(n_fac)):
 			if i == j:
-				f_matrix[0][i][i]=0
+				d_matrix[i][i]=0
 			else:
-				r1 = random.random()
-				f1 = int(math.pow(10,((int(B)-int(A))*r1+int(A))))
-				f_matrix[0][i][j] = f1
-				f_matrix[0][j][i] = f1
-				if f1 > max_flow:
-					max_flow = f1
-				for k in range(1,int(n_k)):
-					if i == j:
-						f_matrix[k][i][i]=0
-					else:
-						r2 = random.random()
-						if r2 > int(overlap):
-							if f_matrix[0][i][j] == 0:
-								r2 = random.random()*int(B)
-								fk = int(math.pow(10,r2))
-								f_matrix[k][i][j] = fk
-								f_matrix[k][j][i] = fk
-							else:
-								fk = 0
-								f_matrix[k][i][j] = fk
-								f_matrix[k][j][i] = fk
+				d1 = 1 + int(max_dist*random.random())
+				d_matrix[i][j]=d1
+				d_matrix[j][i]=d1
+
+		for i in range(0,int(n_fac)):
+			for j in range(0,int(n_fac)):
+				if i == j:
+					f_matrix[0][i][i]=0
+				else:
+					r1 = random.random()
+					f1 = 1+int(max_flow*r1)
+					f_matrix[0][i][j]=f1
+					f_matrix[0][j][i]=f1
+					for k in range(1,int(n_k)):
+						if i == j:
+							f_matrix[k][i][i]=0
 						else:
 							r2 = random.random()
-							if int(corr[k]) >= 0:
-								val = correl_val(r1,corr[k])
+							if corr >= 0:
+								fk = 1+int(max_flow*correl_val(r1,corr))
 							else:
-								val = 1.0 - correl_val(r1,-corr[k])
-							fk = int(math.pow(10,((int(B)-int(A))*val+int(A))))
-							f_matrix[k][i][j] = fk
-							f_matrix[k][j][i] = fk
-
-					if fk > max_flow:
-						max_flow = fk
-
+								fk = 1+int(max_flow*(1.0-correl_val(r1,corr)))
+							f_matrix[k][i][j]=fk
+							f_matrix[k][j][i]=fk
 	print_output(int(n_k),int(n_fac))
-
-
 
 def correl_val(v,c):
 	p = 0.5
@@ -173,7 +104,7 @@ def correl_val(v,c):
 			break
 	return q
 
-
+	
 def print_output(n_k,n_fac):
 	print (str(n_k)+" "+str(n_fac))
 
@@ -189,26 +120,5 @@ def print_output(n_k,n_fac):
 				print int(f_matrix[k][i][j]),
 			print("")
 
-
-
-def point_in_plane(M, K, m, max_points):
-	num_points=0
-	
-	while num_points < int(max_points):
-		Theta = random.random()*2*math.pi
-		R = int(random.random() * M)
-		N = int((random.random() * K) + 1)
-		for i in range (0,N):
-			if num_points < int(max_points):
-				theta = random.random()*2*math.pi
-				r = int(random.random()*m)
-				XYpos[num_points][0] = int(R * math.cos(Theta) + r * math.cos(theta))
-				XYpos[num_points][1] = int(R * math.sin(Theta) + r * math.sin(theta))
-				num_points+=1
-
-
 if __name__ == '__main__':
     main()
-
-
-
